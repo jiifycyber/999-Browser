@@ -67,9 +67,10 @@ class _PriceCalculatorPageState extends State<PriceCalculatorPage> {
 
     final double taxRate =
         double.tryParse(taxRateController.text) ?? 0;
+    final double markedUpPartsCost = partsCost * 1.80;
 
     setState(() {
-      subtotal = serviceCall + partsCost;
+      subtotal = serviceCall + markedUpPartsCost;
       taxAmount = subtotal * (taxRate / 100);
       total = subtotal + taxAmount;
     });
