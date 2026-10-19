@@ -1,0 +1,222 @@
+import "package:url_launcher/url_launcher.dart";
+import "package:flutter/material.dart";
+
+void main() => runApp(const SearchApp());
+
+class SearchApp extends StatelessWidget {
+  const SearchApp({super.key});
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+    title: "999 Search",
+    debugShowCheckedModeBanner: false,
+    theme: ThemeData.dark(),
+    home: const SearchHome(),
+  );
+}
+
+class SearchHome extends StatefulWidget {
+  const SearchHome({super.key});
+  @override
+  State<SearchHome> createState() => _SearchHomeState();
+}
+
+class _SearchHomeState extends State<SearchHome> {
+  final search = TextEditingController();
+  Future<void> runSearch() async {
+    final query = search.text.trim();
+    if (query.isEmpty) return;
+    final address = query.contains(".") && !query.contains(" ");
+    final target = address
+        ? (query.startsWith("http://") || query.startsWith("https://")
+              ? query
+              : "https://$query")
+        : "https://www.google.com/search?q=${Uri.encodeQueryComponent(query)}";
+    final uri = Uri.tryParse(target);
+    if (uri != null) await launchUrl(uri, mode: LaunchMode.platformDefault);
+  }
+
+  String category = "Web";
+  @override
+  Widget build(BuildContext context) {
+    final mobile = MediaQuery.sizeOf(context).width < 700;
+    final categories = [
+      "Web",
+      "Images",
+      "News",
+      "Videos",
+      "Maps",
+      "Shopping",
+      "AI Answer",
+    ];
+    return Scaffold(
+      backgroundColor: const Color(0xFF030B1C),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        title: mobile ? null : const Text("999 SEARCH"),
+        actions: [
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.account_circle_outlined),
+          ),
+        ],
+      ),
+      drawer: const Drawer(
+        child: SafeArea(child: Center(child: Text("999 Search"))),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 950),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "999",
+                      style: TextStyle(
+                        fontSize: mobile ? 100 : 160,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF32B9FF),
+                        shadows: const [
+                          Shadow(color: Colors.blue, blurRadius: 35),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      "S E A R C H",
+                      style: TextStyle(
+                        fontSize: mobile ? 28 : 48,
+                        letterSpacing: 7,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      "EXPLORE  •  DISCOVER  •  KNOW  •  BE FREE",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11,
+                        letterSpacing: 2,
+                        color: Colors.white70,
+                      ),
+                    ),
+                    SizedBox(height: mobile ? 75 : 110),
+                    TextField(
+                      controller: search,
+                      onSubmitted: (_) => runSearch(),
+                      decoration: InputDecoration(
+                        hintText: "Search the world without limits...",
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: const Icon(Icons.mic_none),
+                        filled: true,
+                        fillColor: const Color(0xFF0B1930),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(40),
+                          borderSide: const BorderSide(color: Colors.blue),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(40),
+                          borderSide: const BorderSide(color: Colors.blue),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 25),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 15,
+                      children: [
+                        FilledButton(
+                          onPressed: runSearch,
+                          child: const Text("999 Search"),
+                        ),
+                        OutlinedButton(
+                          onPressed: () {},
+                          child: const Text("I am Feeling Lucky"),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 40),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 25,
+                      runSpacing: 25,
+                      children: categories
+                          .map(
+                            (item) => InkWell(
+                              onTap: () => setState(() => category = item),
+                              child: SizedBox(
+                                width: mobile ? 65 : 95,
+                                child: Column(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 28,
+                                      backgroundColor: category == item
+                                          ? Colors.blue
+                                          : const Color(0xFF11203A),
+                                      child: Icon(
+                                        item == "Images"
+                                            ? Icons.image_outlined
+                                            : item == "News"
+                                            ? Icons.article_outlined
+                                            : item == "Videos"
+                                            ? Icons.play_circle_outline
+                                            : item == "Maps"
+                                            ? Icons.location_on_outlined
+                                            : item == "Shopping"
+                                            ? Icons.shopping_bag_outlined
+                                            : item == "AI Answer"
+                                            ? Icons.auto_awesome
+                                            : Icons.public,
+                                        color: Colors.cyanAccent,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      item,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    const SizedBox(height: 35),
+                    if (search.text.isNotEmpty)
+                      Text(
+                        "Search ready: ${search.text}",
+                        style: const TextStyle(color: Colors.cyanAccent),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+      bottomNavigationBar: mobile
+          ? NavigationBar(
+              selectedIndex: 0,
+              onDestinationSelected: (_) {},
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.search),
+                  label: "Search",
+                ),
+                NavigationDestination(icon: Icon(Icons.image), label: "Images"),
+                NavigationDestination(icon: Icon(Icons.article), label: "News"),
+                NavigationDestination(
+                  icon: Icon(Icons.play_circle),
+                  label: "Videos",
+                ),
+                NavigationDestination(icon: Icon(Icons.menu), label: "More"),
+              ],
+            )
+          : null,
+    );
+  }
+}
