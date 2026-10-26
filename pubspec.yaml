@@ -41,6 +41,7 @@ dependencies:
   xml: ^7.1.0
   macos_webview_kit: ^0.0.3
   flutter_inappwebview: ^6.1.5
+  webview_windows: ^0.4.0
 
 dev_dependencies:
   flutter_test:

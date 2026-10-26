@@ -1,4 +1,6 @@
+import "package:webview_windows/webview_windows.dart" as win;
 import "package:flutter/foundation.dart";
+import "package:url_launcher/url_launcher.dart";
 import "package:flutter_inappwebview/flutter_inappwebview.dart" as desktop;
 import 'widgets/divine_legends_trivia.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -213,11 +215,15 @@ class _BrowserHomeState extends State<BrowserHome> {
   int activeTab = 0;
   final Map<int, WebViewController> tabControllers = {};
   final Map<int, desktop.InAppWebViewController> desktopTabControllers = {};
+  final Map<int, win.WebviewController> windowsTabControllers = {};
   final Map<int, String> tabUrls = {};
   final Map<int, bool> tabLoading = {};
 
   @override
   void dispose() {
+    for (final controller in windowsTabControllers.values) {
+      controller.dispose();
+    }
     search.dispose();
     address.dispose();
     super.dispose();
@@ -240,7 +246,14 @@ class _BrowserHomeState extends State<BrowserHome> {
         final url = uri.toString();
         address.text = url;
         address.text = url;
-        if (defaultTargetPlatform == TargetPlatform.macOS) {
+        if (kIsWeb) {
+          await launchUrl(uri, webOnlyWindowName: "_blank");
+          return;
+        }
+        if (defaultTargetPlatform == TargetPlatform.windows) {
+          await openWindowsWebsite(uri.toString());
+          return;
+        } else if (defaultTargetPlatform == TargetPlatform.macOS) {
           final existing = desktopTabControllers[activeTab];
           if (existing != null) {
             await existing.loadUrl(
@@ -302,6 +315,22 @@ class _BrowserHomeState extends State<BrowserHome> {
 
   String privacyReturnSection = "Home";
 
+  Future<void> openWindowsWebsite(String url) async {
+    var controller = windowsTabControllers[activeTab];
+    if (controller == null) {
+      controller = win.WebviewController();
+      await controller.initialize();
+      windowsTabControllers[activeTab] = controller;
+    }
+    await controller.loadUrl(url);
+    if (!mounted) return;
+    setState(() {
+      tabUrls[activeTab] = url;
+      tabs[activeTab] = Uri.parse(url).host;
+      section = "Web";
+    });
+  }
+
   Future<void> openWebsite(String target) async {
     final uri = Uri.tryParse(target);
     if (uri == null ||
@@ -310,7 +339,14 @@ class _BrowserHomeState extends State<BrowserHome> {
       return;
     }
     final url = uri.toString();
-    if (defaultTargetPlatform == TargetPlatform.macOS) {
+    if (kIsWeb) {
+      await launchUrl(uri, webOnlyWindowName: "_blank");
+      return;
+    }
+    if (defaultTargetPlatform == TargetPlatform.windows) {
+      await openWindowsWebsite(uri.toString());
+      return;
+    } else if (defaultTargetPlatform == TargetPlatform.macOS) {
       final existing = desktopTabControllers[activeTab];
       if (existing != null) {
         await existing.loadUrl(
@@ -1428,6 +1464,10 @@ class _BrowserHomeState extends State<BrowserHome> {
   }
 
   Widget webNavigationBar() {
+    final windowsController =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows
+        ? windowsTabControllers[activeTab]
+        : null;
     final controller = tabControllers[activeTab];
     return Container(
       color: panel,
@@ -1437,7 +1477,13 @@ class _BrowserHomeState extends State<BrowserHome> {
             tooltip: "Back",
             icon: const Icon(Icons.arrow_back, color: gold),
             onPressed: () async {
-              if (defaultTargetPlatform == TargetPlatform.macOS &&
+              if (windowsController != null &&
+                  windowsController.value.isInitialized) {
+                await windowsController.goBack();
+              } else if (windowsController != null &&
+                  windowsController.value.isInitialized) {
+                await windowsController.goForward();
+              } else if (defaultTargetPlatform == TargetPlatform.macOS &&
                   desktopTabControllers[activeTab] != null) {
                 final web = desktopTabControllers[activeTab]!;
                 if (await web.canGoBack()) await web.goBack();
@@ -1464,7 +1510,10 @@ class _BrowserHomeState extends State<BrowserHome> {
             tooltip: "Refresh",
             icon: const Icon(Icons.refresh, color: gold),
             onPressed: () {
-              if (defaultTargetPlatform == TargetPlatform.macOS) {
+              if (windowsController != null &&
+                  windowsController.value.isInitialized) {
+                windowsController.reload();
+              } else if (defaultTargetPlatform == TargetPlatform.macOS) {
                 desktopTabControllers[activeTab]?.reload();
               } else {
                 controller?.reload();
@@ -1501,11 +1550,15 @@ class _BrowserHomeState extends State<BrowserHome> {
       tabs.removeAt(index);
       tabControllers.remove(index);
       desktopTabControllers.remove(index);
+      windowsTabControllers.remove(index)?.dispose();
       tabUrls.remove(index);
       tabLoading.remove(index);
       for (var i = index + 1; i <= tabs.length; i++) {
         if (tabControllers.containsKey(i)) {
           tabControllers[i - 1] = tabControllers.remove(i)!;
+        }
+        if (windowsTabControllers.containsKey(i)) {
+          windowsTabControllers[i - 1] = windowsTabControllers.remove(i)!;
         }
         if (desktopTabControllers.containsKey(i)) {
           desktopTabControllers[i - 1] = desktopTabControllers.remove(i)!;
@@ -1543,6 +1596,18 @@ class _BrowserHomeState extends State<BrowserHome> {
   }
 
   Widget sectionBody() {
+    if (section == "Web" &&
+        !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.windows) {
+      final controller = windowsTabControllers[activeTab];
+      if (controller == null || !controller.value.isInitialized) return home();
+      return Column(
+        children: [
+          webNavigationBar(),
+          Expanded(child: win.Webview(controller)),
+        ],
+      );
+    }
     if (section == "Web") {
       if (defaultTargetPlatform == TargetPlatform.macOS) {
         final tabId = activeTab;
@@ -1556,6 +1621,9 @@ class _BrowserHomeState extends State<BrowserHome> {
               child: desktop.InAppWebView(
                 initialSettings: desktop.InAppWebViewSettings(
                   isInspectable: kDebugMode,
+                  incognito: false,
+                  cacheEnabled: true,
+                  clearCache: false,
                 ),
                 key: ValueKey("desktop_web_$tabId"),
                 initialUrlRequest: desktop.URLRequest(url: desktop.WebUri(url)),
